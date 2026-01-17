@@ -1,0 +1,39 @@
+this inside the editor:
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Fitness Tracker</title>
+</head>
+<body>
+
+  <h1>Fitness Tracker</h1>
+
+  <input id="workout" placeholder="Workout (e.g Pushups)">
+  <input id="minutes" type="number" placeholder="Minutes">
+  <br><br>
+
+  <button onclick="addWorkout()">Add Workout</button>
+
+  <h3>My Workouts</h3>
+  <ul id="list"></ul>
+
+  <script>
+    function addWorkout() {
+      const workout = document.getElementById("workout").value;
+      const minutes = document.getElementById("minutes").value;
+
+      if (!workout || !minutes) return;
+
+      const li = document.createElement("li");
+      li.innerText = workout + " - " + minutes + " minutes";
+
+      document.getElementById("list").appendChild(li);
+
+      document.getElementById("workout").value = "";
+      document.getElementById("minutes").value = "";
+    }
+  </script>
+
+</body>
+</html>
