@@ -18,22 +18,37 @@ this inside the editor:
   <h3>My Workouts</h3>
   <ul id="list"></ul>
 
-  <script>
-    function addWorkout() {
-      const workout = document.getElementById("workout").value;
-      const minutes = document.getElementById("minutes").value;
+<script>
+  let workouts = JSON.parse(localStorage.getItem("workouts")) || [];
 
-      if (!workout || !minutes) return;
+  function showWorkouts() {
+    const list = document.getElementById("list");
+    list.innerHTML = "";
 
+    workouts.forEach(w => {
       const li = document.createElement("li");
-      li.innerText = workout + " - " + minutes + " minutes";
+      li.innerText = w.workout + " - " + w.minutes + " minutes";
+      list.appendChild(li);
+    });
+  }
 
-      document.getElementById("list").appendChild(li);
+  function addWorkout() {
+    const workout = document.getElementById("workout").value;
+    const minutes = document.getElementById("minutes").value;
 
-      document.getElementById("workout").value = "";
-      document.getElementById("minutes").value = "";
-    }
-  </script>
+    if (!workout || !minutes) return;
 
+    workouts.push({ workout, minutes });
+    localStorage.setItem("workouts", JSON.stringify(workouts));
+
+    document.getElementById("workout").value = "";
+    document.getElementById("minutes").value = "";
+
+    showWorkouts();
+  }
+
+  showWorkouts();
+</script>
+  
 </body>
 </html>
