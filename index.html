@@ -2,109 +2,127 @@
 <html>
 <head>
   <title>Fitness Tracker</title>
-
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 400px;
-      margin: auto;
-      padding: 20px;
-      background: #f9f9f9;
-    }
-
-    h1 {
-      text-align: center;
-    }
-
-    input, button {
-      width: 100%;
-      padding: 10px;
-      margin-top: 8px;
-      font-size: 16px;
-    }
-
-    button {
-      background: black;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-
-    button:hover {
-      opacity: 0.9;
-    }
-
-    ul {
-      padding: 0;
-    }
-
-    li {
-      list-style: none;
-      background: white;
-      padding: 10px;
-      margin-top: 8px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .stats {
-      background: white;
-      padding: 10px;
-      margin-top: 10px;
-    }
-
-    .delete-btn {
-      background: red;
-      color: white;
-      border: none;
-      padding: 5px 8px;
-      cursor: pointer;
-    }
+    body { font-family: Arial; max-width: 400px; margin: auto; padding: 20px; background: #f9f9f9; }
+    h1, h2 { text-align: center; }
+    input, button { width: 100%; padding: 10px; margin-top: 8px; font-size: 16px; }
+    button { background: black; color: white; border: none; cursor: pointer; }
+    button:hover { opacity: 0.9; }
+    ul { padding: 0; }
+    li { list-style: none; background: white; padding: 10px; margin-top: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .stats { background: white; padding: 10px; margin-top: 10px; }
+    .delete-btn { background: red; color: white; border: none; padding: 5px 8px; cursor: pointer; }
   </style>
 </head>
-
 <body>
 
   <h1>Fitness Tracker</h1>
 
-  <div class="stats">
-    <p><strong>Total Minutes:</strong> <span id="totalMinutes">0</span></p>
-    <p><strong>Total Calories:</strong> <span id="totalCalories">0</span></p>
+  <!-- LOGIN / SIGNUP -->
+  <div id="authDiv">
+    <h2>Login / Signup</h2>
+    <input id="email" type="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <button onclick="signup()">Signup</button>
+    <p id="authMessage"></p>
   </div>
 
-  <input id="workout" placeholder="Workout (e.g Running)">
-  <input id="minutes" type="number" placeholder="Minutes">
+  <!-- WORKOUT TRACKER (hidden until login) -->
+  <div id="trackerDiv" style="display:none;">
+    <div class="stats">
+      <p><strong>Total Minutes:</strong> <span id="totalMinutes">0</span></p>
+      <p><strong>Total Calories:</strong> <span id="totalCalories">0</span></p>
+    </div>
 
-  <button onclick="addWorkout()">Add Workout</button>
+    <input id="workout" placeholder="Workout (e.g Running)">
+    <input id="minutes" type="number" placeholder="Minutes">
+    <button onclick="addWorkout()">Add Workout</button>
 
-  <h3>My Workouts</h3>
-  <ul id="list"></ul>
+    <h3>My Workouts</h3>
+    <ul id="list"></ul>
 
-  <script>
-    let workouts = JSON.parse(localStorage.getItem("workouts")) || [];
+    <button onclick="logout()" style="margin-top:10px; background:gray;">Logout</button>
+  </div>
+
+  <!-- FIREBASE -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+    // 🔹 Paste your Firebase config here
+   const firebaseConfig = {
+  apiKey: "AIzaSyB8s8CoDhWLjhrURfV8z-6Gg8ielk2oNcc",
+  authDomain: "fitness-app-ad576.firebaseapp.com",
+  projectId: "fitness-app-ad576",
+  storageBucket: "fitness-app-ad576.firebasestorage.app",
+  messagingSenderId: "571093892763",
+  appId: "1:571093892763:web:76db8ed5a20cb51d98103e"
+};
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const authDiv = document.getElementById("authDiv");
+    const trackerDiv = document.getElementById("trackerDiv");
+    const authMessage = document.getElementById("authMessage");
+
+    // Check login state
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        authDiv.style.display = "none";
+        trackerDiv.style.display = "block";
+        loadWorkouts();
+      } else {
+        authDiv.style.display = "block";
+        trackerDiv.style.display = "none";
+      }
+    });
+
+    // Signup function
+    window.signup = () => {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      createUserWithEmailAndPassword(auth, email, password)
+        .then(() => { authMessage.innerText = "Signup successful!"; })
+        .catch(err => { authMessage.innerText = err.message; });
+    };
+
+    // Login function
+    window.login = () => {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      signInWithEmailAndPassword(auth, email, password)
+        .then(() => { authMessage.innerText = "Login successful!"; })
+        .catch(err => { authMessage.innerText = err.message; });
+    };
+
+    // Logout function
+    window.logout = () => { signOut(auth); };
+
+    // 🔹 Workout Tracker (same as before, still uses localStorage per user)
+    let workouts = [];
+
+    function loadWorkouts() {
+      workouts = JSON.parse(localStorage.getItem(auth.currentUser.uid)) || [];
+      showWorkouts();
+    }
 
     function showWorkouts() {
       const list = document.getElementById("list");
       list.innerHTML = "";
-
       let totalMinutes = 0;
       let totalCalories = 0;
-
       workouts.forEach((w, index) => {
         const li = document.createElement("li");
-
         li.innerHTML = `
           <span>${w.workout} - ${w.minutes} min (${w.calories} cal)</span>
           <button class="delete-btn" onclick="deleteWorkout(${index})">❌</button>
         `;
-
         list.appendChild(li);
-
         totalMinutes += Number(w.minutes);
         totalCalories += Number(w.calories);
       });
-
       document.getElementById("totalMinutes").innerText = totalMinutes;
       document.getElementById("totalCalories").innerText = totalCalories;
     }
@@ -112,27 +130,21 @@
     function addWorkout() {
       const workout = document.getElementById("workout").value;
       const minutes = document.getElementById("minutes").value;
-
       if (!workout || !minutes) return;
-
       const calories = minutes * 7;
-
       workouts.push({ workout, minutes, calories });
-      localStorage.setItem("workouts", JSON.stringify(workouts));
-
+      localStorage.setItem(auth.currentUser.uid, JSON.stringify(workouts));
       document.getElementById("workout").value = "";
       document.getElementById("minutes").value = "";
-
       showWorkouts();
     }
 
     function deleteWorkout(index) {
       workouts.splice(index, 1);
-      localStorage.setItem("workouts", JSON.stringify(workouts));
+      localStorage.setItem(auth.currentUser.uid, JSON.stringify(workouts));
       showWorkouts();
     }
 
-    showWorkouts();
   </script>
 
 </body>
