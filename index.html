@@ -2,51 +2,138 @@
 <html>
 <head>
   <title>Fitness Tracker</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 400px;
+      margin: auto;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 8px;
+      font-size: 16px;
+    }
+
+    button {
+      background: black;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    ul {
+      padding: 0;
+    }
+
+    li {
+      list-style: none;
+      background: white;
+      padding: 10px;
+      margin-top: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .stats {
+      background: white;
+      padding: 10px;
+      margin-top: 10px;
+    }
+
+    .delete-btn {
+      background: red;
+      color: white;
+      border: none;
+      padding: 5px 8px;
+      cursor: pointer;
+    }
+  </style>
 </head>
+
 <body>
 
   <h1>Fitness Tracker</h1>
 
-  <input id="workout" placeholder="Workout (e.g Pushups)">
+  <div class="stats">
+    <p><strong>Total Minutes:</strong> <span id="totalMinutes">0</span></p>
+    <p><strong>Total Calories:</strong> <span id="totalCalories">0</span></p>
+  </div>
+
+  <input id="workout" placeholder="Workout (e.g Running)">
   <input id="minutes" type="number" placeholder="Minutes">
-  <br><br>
 
   <button onclick="addWorkout()">Add Workout</button>
 
   <h3>My Workouts</h3>
   <ul id="list"></ul>
 
-<script>
-  let workouts = JSON.parse(localStorage.getItem("workouts")) || [];
+  <script>
+    let workouts = JSON.parse(localStorage.getItem("workouts")) || [];
 
-  function showWorkouts() {
-    const list = document.getElementById("list");
-    list.innerHTML = "";
+    function showWorkouts() {
+      const list = document.getElementById("list");
+      list.innerHTML = "";
 
-    workouts.forEach(w => {
-      const li = document.createElement("li");
-      li.innerText = w.workout + " - " + w.minutes + " minutes";
-      list.appendChild(li);
-    });
-  }
+      let totalMinutes = 0;
+      let totalCalories = 0;
 
-  function addWorkout() {
-    const workout = document.getElementById("workout").value;
-    const minutes = document.getElementById("minutes").value;
+      workouts.forEach((w, index) => {
+        const li = document.createElement("li");
 
-    if (!workout || !minutes) return;
+        li.innerHTML = `
+          <span>${w.workout} - ${w.minutes} min (${w.calories} cal)</span>
+          <button class="delete-btn" onclick="deleteWorkout(${index})">❌</button>
+        `;
 
-    workouts.push({ workout, minutes });
-    localStorage.setItem("workouts", JSON.stringify(workouts));
+        list.appendChild(li);
 
-    document.getElementById("workout").value = "";
-    document.getElementById("minutes").value = "";
+        totalMinutes += Number(w.minutes);
+        totalCalories += Number(w.calories);
+      });
+
+      document.getElementById("totalMinutes").innerText = totalMinutes;
+      document.getElementById("totalCalories").innerText = totalCalories;
+    }
+
+    function addWorkout() {
+      const workout = document.getElementById("workout").value;
+      const minutes = document.getElementById("minutes").value;
+
+      if (!workout || !minutes) return;
+
+      const calories = minutes * 7;
+
+      workouts.push({ workout, minutes, calories });
+      localStorage.setItem("workouts", JSON.stringify(workouts));
+
+      document.getElementById("workout").value = "";
+      document.getElementById("minutes").value = "";
+
+      showWorkouts();
+    }
+
+    function deleteWorkout(index) {
+      workouts.splice(index, 1);
+      localStorage.setItem("workouts", JSON.stringify(workouts));
+      showWorkouts();
+    }
 
     showWorkouts();
-  }
+  </script>
 
-  showWorkouts();
-</script>
-  
 </body>
 </html>
