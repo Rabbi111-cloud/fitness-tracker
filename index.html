@@ -49,23 +49,27 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     // 🔹 Paste your Firebase config here
-   const firebaseConfig = {
-  apiKey: "AIzaSyB8s8CoDhWLjhrURfV8z-6Gg8ielk2oNcc",
-  authDomain: "fitness-app-ad576.firebaseapp.com",
-  projectId: "fitness-app-ad576",
-  storageBucket: "fitness-app-ad576.firebasestorage.app",
-  messagingSenderId: "571093892763",
-  appId: "1:571093892763:web:76db8ed5a20cb51d98103e"
-};
+    const firebaseConfig = {
+      apiKey: "AIzaSyB8s8CoDhWLjhrURfV8z-6Gg8ielk2oNcc",
+      authDomain: "fitness-app-ad576.firebaseapp.com",
+      projectId: "fitness-app-ad576",
+      storageBucket: "fitness-app-ad576.appspot.com",
+      messagingSenderId: "571093892763",
+      appId: "1:571093892763:web:76db8ed5a20cb51d98103e"
+    };
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
+    const db = getFirestore(app);
 
     const authDiv = document.getElementById("authDiv");
     const trackerDiv = document.getElementById("trackerDiv");
     const authMessage = document.getElementById("authMessage");
+
+    let workouts = [];
 
     // Check login state
     onAuthStateChanged(auth, user => {
@@ -100,11 +104,17 @@
     // Logout function
     window.logout = () => { signOut(auth); };
 
-    // 🔹 Workout Tracker (same as before, still uses localStorage per user)
-    let workouts = [];
+    // 🔹 Firestore Workout Tracker
+    async function loadWorkouts() {
+      const docRef = doc(db, "users", auth.currentUser.uid);
+      const docSnap = await getDoc(docRef);
 
-    function loadWorkouts() {
-      workouts = JSON.parse(localStorage.getItem(auth.currentUser.uid)) || [];
+      if (docSnap.exists()) {
+        workouts = docSnap.data().workouts || [];
+      } else {
+        workouts = [];
+      }
+
       showWorkouts();
     }
 
@@ -127,21 +137,24 @@
       document.getElementById("totalCalories").innerText = totalCalories;
     }
 
-    function addWorkout() {
+    async function addWorkout() {
       const workout = document.getElementById("workout").value;
       const minutes = document.getElementById("minutes").value;
       if (!workout || !minutes) return;
       const calories = minutes * 7;
       workouts.push({ workout, minutes, calories });
-      localStorage.setItem(auth.currentUser.uid, JSON.stringify(workouts));
+
+      // Save to Firestore
+      await setDoc(doc(db, "users", auth.currentUser.uid), { workouts });
+
       document.getElementById("workout").value = "";
       document.getElementById("minutes").value = "";
       showWorkouts();
     }
 
-    function deleteWorkout(index) {
+    async function deleteWorkout(index) {
       workouts.splice(index, 1);
-      localStorage.setItem(auth.currentUser.uid, JSON.stringify(workouts));
+      await setDoc(doc(db, "users", auth.currentUser.uid), { workouts });
       showWorkouts();
     }
 
