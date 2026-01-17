@@ -88,6 +88,7 @@
     let workouts = [];
     let chart;
 
+    // Auth state check
     onAuthStateChanged(auth, user => {
       if (user) {
         authDiv.style.display = "none";
@@ -117,14 +118,16 @@
 
     window.logout = () => { signOut(auth); };
 
+    // Load workouts from Firestore
     async function loadWorkouts() {
+      if (!auth.currentUser) return;
       const docRef = doc(db, "users", auth.currentUser.uid);
       const docSnap = await getDoc(docRef);
-
       workouts = docSnap.exists() ? docSnap.data().workouts || [] : [];
       showWorkouts();
     }
 
+    // Show workouts and update chart
     function showWorkouts() {
       const list = document.getElementById("list");
       list.innerHTML = "";
@@ -143,10 +146,18 @@
       updateChart();
     }
 
+    // Add workout (safeguarded)
     async function addWorkout() {
+      if (!auth.currentUser) {
+        alert("Please login first!");
+        return;
+      }
       const workout = document.getElementById("workout").value;
       const minutes = document.getElementById("minutes").value;
-      if (!workout || !minutes) return;
+      if (!workout || !minutes) {
+        alert("Enter both workout and minutes!");
+        return;
+      }
       const calories = minutes * 7;
       workouts.push({ workout, minutes, calories });
       await setDoc(doc(db, "users", auth.currentUser.uid), { workouts });
@@ -155,12 +166,15 @@
       showWorkouts();
     }
 
+    // Delete workout
     async function deleteWorkout(index) {
+      if (!auth.currentUser) return;
       workouts.splice(index, 1);
       await setDoc(doc(db, "users", auth.currentUser.uid), { workouts });
       showWorkouts();
     }
 
+    // Chart.js update
     function updateChart() {
       const labels = workouts.map(w => w.workout);
       const data = workouts.map(w => Number(w.minutes));
@@ -168,7 +182,16 @@
       if (chart) chart.destroy();
       chart = new Chart(ctx, {
         type: 'bar',
-        data: { labels, datasets: [{ label: 'Minutes', data, backgroundColor: 'rgba(0, 150, 136, 0.7)', borderColor: 'rgba(0,150,136,1)', borderWidth: 1 }] },
+        data: {
+          labels,
+          datasets: [{
+            label: 'Minutes',
+            data,
+            backgroundColor: 'rgba(0,150,136,0.7)',
+            borderColor: 'rgba(0,150,136,1)',
+            borderWidth: 1
+          }]
+        },
         options: { scales: { y: { beginAtZero: true } } }
       });
     }
