@@ -25,6 +25,10 @@
   </style>
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Firebase CDN compat scripts -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -62,13 +66,9 @@
     <button onclick="logout()" style="margin-top:15px; background:#555;">Logout</button>
   </div>
 
-  <!-- FIREBASE -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-    const firebaseConfig = {
+  <script>
+    // Firebase config
+    var firebaseConfig = {
       apiKey: "AIzaSyB8s8CoDhWLjhrURfV8z-6Gg8ielk2oNcc",
       authDomain: "fitness-app-ad576.firebaseapp.com",
       projectId: "fitness-app-ad576",
@@ -76,21 +76,20 @@
       messagingSenderId: "571093892763",
       appId: "1:571093892763:web:76db8ed5a20cb51d98103e"
     };
+    firebase.initializeApp(firebaseConfig);
+    var auth = firebase.auth();
+    var db = firebase.firestore();
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    var authDiv = document.getElementById("authDiv");
+    var trackerDiv = document.getElementById("trackerDiv");
+    var authMessage = document.getElementById("authMessage");
 
-    const authDiv = document.getElementById("authDiv");
-    const trackerDiv = document.getElementById("trackerDiv");
-    const authMessage = document.getElementById("authMessage");
+    var workouts = [];
+    var chart;
 
-    let workouts = [];
-    let chart;
-
-    // Auth state check
-    onAuthStateChanged(auth, user => {
-      if (user) {
+    // Auth state
+    auth.onAuthStateChanged(function(user){
+      if(user){
         authDiv.style.display = "none";
         trackerDiv.style.display = "block";
         loadWorkouts();
@@ -100,43 +99,45 @@
       }
     });
 
-    window.signup = () => {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      createUserWithEmailAndPassword(auth, email, password)
-        .then(() => { authMessage.style.color = "green"; authMessage.innerText = "Signup successful!"; })
-        .catch(err => { authMessage.style.color = "red"; authMessage.innerText = err.message; });
-    };
-
-    window.login = () => {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      signInWithEmailAndPassword(auth, email, password)
-        .then(() => { authMessage.style.color = "green"; authMessage.innerText = "Login successful!"; })
-        .catch(err => { authMessage.style.color = "red"; authMessage.innerText = err.message; });
-    };
-
-    window.logout = () => { signOut(auth); };
-
-    // Load workouts from Firestore
-    async function loadWorkouts() {
-      if (!auth.currentUser) return;
-      const docRef = doc(db, "users", auth.currentUser.uid);
-      const docSnap = await getDoc(docRef);
-      workouts = docSnap.exists() ? docSnap.data().workouts || [] : [];
-      showWorkouts();
+    function signup(){
+      var email = document.getElementById("email").value;
+      var password = document.getElementById("password").value;
+      auth.createUserWithEmailAndPassword(email,password)
+        .then(()=>{ authMessage.style.color="green"; authMessage.innerText="Signup successful!"; })
+        .catch(err=>{ authMessage.style.color="red"; authMessage.innerText=err.message; });
     }
 
-    // Show workouts and update chart
-    function showWorkouts() {
-      const list = document.getElementById("list");
+    function login(){
+      var email = document.getElementById("email").value;
+      var password = document.getElementById("password").value;
+      auth.signInWithEmailAndPassword(email,password)
+        .then(()=>{ authMessage.style.color="green"; authMessage.innerText="Login successful!"; })
+        .catch(err=>{ authMessage.style.color="red"; authMessage.innerText=err.message; });
+    }
+
+    function logout(){ auth.signOut(); }
+
+    function loadWorkouts(){
+      if(!auth.currentUser) return;
+      db.collection("users").doc(auth.currentUser.uid).get().then(function(doc){
+        if(doc.exists){
+          workouts = doc.data().workouts || [];
+        } else {
+          workouts = [];
+        }
+        showWorkouts();
+      });
+    }
+
+    function showWorkouts(){
+      var list = document.getElementById("list");
       list.innerHTML = "";
-      let totalMinutes = 0;
-      let totalCalories = 0;
-      workouts.forEach((w, index) => {
-        const li = document.createElement("li");
-        li.innerHTML = `<span>${w.workout} - ${w.minutes} min (${w.calories} cal)</span>
-                        <button class="delete-btn" onclick="deleteWorkout(${index})">❌</button>`;
+      var totalMinutes = 0;
+      var totalCalories = 0;
+      workouts.forEach(function(w,index){
+        var li = document.createElement("li");
+        li.innerHTML = '<span>'+w.workout+' - '+w.minutes+' min ('+w.calories+' cal)</span>'+
+                       '<button class="delete-btn" onclick="deleteWorkout('+index+')">❌</button>';
         list.appendChild(li);
         totalMinutes += Number(w.minutes);
         totalCalories += Number(w.calories);
@@ -146,53 +147,35 @@
       updateChart();
     }
 
-    // Add workout (safeguarded)
-    async function addWorkout() {
-      if (!auth.currentUser) {
-        alert("Please login first!");
-        return;
-      }
-      const workout = document.getElementById("workout").value;
-      const minutes = document.getElementById("minutes").value;
-      if (!workout || !minutes) {
-        alert("Enter both workout and minutes!");
-        return;
-      }
-      const calories = minutes * 7;
-      workouts.push({ workout, minutes, calories });
-      await setDoc(doc(db, "users", auth.currentUser.uid), { workouts });
-      document.getElementById("workout").value = "";
-      document.getElementById("minutes").value = "";
+    function addWorkout(){
+      if(!auth.currentUser){ alert("Please login first!"); return; }
+      var workout = document.getElementById("workout").value;
+      var minutes = document.getElementById("minutes").value;
+      if(!workout || !minutes){ alert("Enter both workout and minutes!"); return; }
+      var calories = minutes * 7;
+      workouts.push({workout:workout,minutes:minutes,calories:calories});
+      db.collection("users").doc(auth.currentUser.uid).set({workouts:workouts});
+      document.getElementById("workout").value="";
+      document.getElementById("minutes").value="";
       showWorkouts();
     }
 
-    // Delete workout
-    async function deleteWorkout(index) {
-      if (!auth.currentUser) return;
-      workouts.splice(index, 1);
-      await setDoc(doc(db, "users", auth.currentUser.uid), { workouts });
+    function deleteWorkout(index){
+      if(!auth.currentUser) return;
+      workouts.splice(index,1);
+      db.collection("users").doc(auth.currentUser.uid).set({workouts:workouts});
       showWorkouts();
     }
 
-    // Chart.js update
-    function updateChart() {
-      const labels = workouts.map(w => w.workout);
-      const data = workouts.map(w => Number(w.minutes));
-      const ctx = document.getElementById('progressChart').getContext('2d');
-      if (chart) chart.destroy();
-      chart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Minutes',
-            data,
-            backgroundColor: 'rgba(0,150,136,0.7)',
-            borderColor: 'rgba(0,150,136,1)',
-            borderWidth: 1
-          }]
-        },
-        options: { scales: { y: { beginAtZero: true } } }
+    function updateChart(){
+      var labels = workouts.map(w=>w.workout);
+      var data = workouts.map(w=>Number(w.minutes));
+      var ctx = document.getElementById('progressChart').getContext('2d');
+      if(chart) chart.destroy();
+      chart = new Chart(ctx,{
+        type:'bar',
+        data:{ labels:labels, datasets:[{label:'Minutes', data:data, backgroundColor:'rgba(0,150,136,0.7)', borderColor:'rgba(0,150,136,1)', borderWidth:1 }] },
+        options:{ scales:{ y:{ beginAtZero:true } } }
       });
     }
   </script>
